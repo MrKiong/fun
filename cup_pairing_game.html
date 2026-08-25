@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>六色水杯配对 · Minimax Hint</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --panel: rgba(255,255,255,.86);
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #6c7689;
+      --line: #dfe5ef;
+      --accent: #5b6cf9;
+      --accent-soft: #eef0ff;
+      --ok: #15803d;
+      --warn: #b45309;
+      --shadow: 0 18px 50px rgba(20, 30, 55, .10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #10131a;
+        --panel: rgba(24,29,39,.90);
+        --card: #1d2330;
+        --text: #edf1f7;
+        --muted: #aab4c4;
+        --line: #343d4d;
+        --accent: #8d99ff;
+        --accent-soft: #2b3152;
+        --ok: #5bd17d;
+        --warn: #ffc36b;
+        --shadow: 0 18px 50px rgba(0,0,0,.28);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 12% 6%, rgba(91,108,249,.11), transparent 31%),
+        radial-gradient(circle at 90% 18%, rgba(22,163,74,.08), transparent 28%),
+        var(--bg);
+      color: var(--text);
+    }
+    button { font: inherit; }
+    .app {
+      width: min(1080px, calc(100% - 28px));
+      margin: 28px auto 48px;
+    }
+    .hero {
+      display: flex;
+      gap: 18px;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+    .hero h1 { margin: 0; font-size: clamp(26px, 4vw, 42px); letter-spacing: -.04em; }
+    .hero p { margin: 7px 0 0; color: var(--muted); max-width: 680px; line-height: 1.65; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+    .game-panel { padding: clamp(18px, 4vw, 34px); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 26px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+    .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .stat-value { font-size: 28px; font-weight: 800; letter-spacing: -.03em; }
+    .board-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .cups {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(72px, 1fr));
+      gap: 12px;
+    }
+    .cup {
+      min-width: 0;
+      min-height: 128px;
+      border: 2px solid transparent;
+      border-radius: 20px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      position: relative;
+      padding: 14px 8px 10px;
+      transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
+    }
+    .cup:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .cup.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+      transform: translateY(-4px);
+    }
+    .cup.hinted:not(.selected) {
+      border-color: var(--warn);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 18%, transparent);
+    }
+    .cup-shape {
+      width: 58px;
+      height: 70px;
+      margin: 0 auto 9px;
+      border-radius: 8px 8px 18px 18px;
+      background: var(--cup-color);
+      box-shadow: inset 0 10px 18px rgba(255,255,255,.28), inset 0 -10px 18px rgba(0,0,0,.12);
+      position: relative;
+    }
+    .cup-shape::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 30px;
+      right: -15px;
+      top: 14px;
+      border: 7px solid var(--cup-color);
+      border-left: 0;
+      border-radius: 0 16px 16px 0;
+      opacity: .9;
+    }
+    .cup-pos { font-size: 11px; color: var(--muted); }
+    .cup-name { display: block; margin-top: 1px; font-weight: 760; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+      align-items: center;
+    }
+    .btn {
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+      padding: 0 16px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn:disabled { opacity: .55; cursor: wait; transform: none; }
+    .message {
+      margin-top: 18px;
+      border-radius: 15px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      min-height: 54px;
+      line-height: 1.55;
+    }
+    .message.success { border-color: color-mix(in srgb, var(--ok) 42%, var(--line)); }
+    .message.hint { border-color: color-mix(in srgb, var(--warn) 48%, var(--line)); }
+    .grid2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(290px, .75fr);
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .side { padding: 20px; }
+    .side h2 { font-size: 17px; margin: 0 0 12px; }
+    .history {
+      display: grid;
+      gap: 8px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .history-row {
+      display: grid;
+      grid-template-columns: 62px 1fr 72px 86px;
+      gap: 8px;
+      align-items: center;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      font-size: 13px;
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+    }
+    .history-row .muted { color: var(--muted); }
+    .rules { color: var(--muted); font-size: 13px; line-height: 1.72; }
+    .rules strong { color: var(--text); }
+    .legend {
+      margin-top: 13px;
+      display: flex;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .dot { display: inline-block; width: 9px; height: 9px; border-radius: 99px; margin-right: 5px; }
+    .tiny { font-size: 12px; color: var(--muted); margin-left: auto; }
+    @media (max-width: 760px) {
+      .hero { align-items: flex-start; flex-direction: column; }
+      .cups { grid-template-columns: repeat(3, 1fr); }
+      .grid2 { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 430px) {
+      .app { width: min(100% - 18px, 1080px); margin-top: 14px; }
+      .game-panel { padding: 15px; }
+      .cups { gap: 8px; }
+      .cup { min-height: 112px; padding: 10px 5px 8px; }
+      .cup-shape { width: 48px; height: 60px; }
+      .history-row { grid-template-columns: 50px 1fr 58px; }
+      .history-row .candidate-cell { display: none; }
+      .stat { padding: 11px; }
+      .stat-value { font-size: 23px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div>
+        <h1>六色水杯配对</h1>
+        <p>下层排列完全隐藏。每次点选两个上层水杯进行交换，系统只告诉你当前命中位置数。Hint 只依据你已经获得的反馈，用精确 minimax 搜索推荐下一步。</p>
+      </div>
+      <button id="newGame" class="btn" type="button">新游戏</button>
+    </section>
+
+    <section class="panel game-panel">
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">当前命中</div>
+          <div id="hitCount" class="stat-value">0 / 6</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">已交换</div>
+          <div id="moveCount" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">剩余候选</div>
+          <div id="candidateCount" class="stat-value">720</div>
+        </div>
+      </div>
+
+      <div class="board-label">
+        <span>上层水杯：先点一个，再点另一个完成交换</span>
+        <span id="selectionText">未选择</span>
+      </div>
+      <div id="cups" class="cups" aria-label="上层六个水杯"></div>
+
+      <div class="controls">
+        <button id="hintBtn" class="btn primary" type="button">Hint · 最优交换</button>
+        <button id="clearBtn" class="btn" type="button">取消选择</button>
+        <span id="solverState" class="tiny">精确搜索器已就绪</span>
+      </div>
+
+      <div id="message" class="message" aria-live="polite">正在生成开局……</div>
+    </section>
+
+    <section class="grid2">
+      <div class="panel side">
+        <h2>操作记录</h2>
+        <div id="history" class="history"></div>
+      </div>
+      <div class="panel side">
+        <h2>规则与 Hint</h2>
+        <div class="rules">
+          <p><strong>目标：</strong>让上层六个位置与隐藏的下层颜色全部对应。</p>
+          <p><strong>反馈：</strong>交换后只显示命中数量，不显示具体命中位置。</p>
+          <p><strong>Hint：</strong>不会读取隐藏答案来决定推荐。它先用你的完整历史筛出所有仍可能的下层排列，再比较 15 种换位，选择使最坏后续交换数最小的方案。</p>
+          <p>如果候选已经唯一，Hint 会直接推荐一条最短排序交换。</p>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:#ef4444"></i>红</span>
+          <span><i class="dot" style="background:#f97316"></i>橙</span>
+          <span><i class="dot" style="background:#eab308"></i>黄</span>
+          <span><i class="dot" style="background:#22c55e"></i>绿</span>
+          <span><i class="dot" style="background:#3b82f6"></i>蓝</span>
+          <span><i class="dot" style="background:#a855f7"></i>紫</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  'use strict';
+
+  const COLORS = [
+    { name: '红', hex: '#ef4444' },
+    { name: '橙', hex: '#f97316' },
+    { name: '黄', hex: '#eab308' },
+    { name: '绿', hex: '#22c55e' },
+    { name: '蓝', hex: '#3b82f6' },
+    { name: '紫', hex: '#a855f7' }
+  ];
+
+  function generatePermutations() {
+    const out = [];
+    const used = Array(6).fill(false);
+    const cur = [];
+    function dfs() {
+      if (cur.length === 6) {
+        out.push(cur.slice());
+        return;
+      }
+      for (let v = 0; v < 6; v++) {
+        if (!used[v]) {
+          used[v] = true;
+          cur.push(v);
+          dfs();
+          cur.pop();
+          used[v] = false;
+        }
+      }
+    }
+    dfs();
+    return out;
+  }
+
+  function shuffleCopy(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function matches(a, b) {
+    let n = 0;
+    for (let i = 0; i < 6; i++) if (a[i] === b[i]) n++;
+    return n;
+  }
+
+  const allPerms = generatePermutations();
+  const cupsEl = document.getElementById('cups');
+  const hitCountEl = document.getElementById('hitCount');
+  const moveCountEl = document.getElementById('moveCount');
+  const candidateCountEl = document.getElementById('candidateCount');
+  const selectionTextEl = document.getElementById('selectionText');
+  const historyEl = document.getElementById('history');
+  const messageEl = document.getElementById('message');
+  const hintBtn = document.getElementById('hintBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const newGameBtn = document.getElementById('newGame');
+  const solverStateEl = document.getElementById('solverState');
+
+  let top = [0,1,2,3,4,5];
+  let hidden = [0,1,2,3,4,5];
+  let candidates = allPerms.slice();
+  let selected = null;
+  let hintedPair = null;
+  let moveCount = 0;
+  let currentHits = 0;
+  let gameOver = false;
+  let stateVersion = 0;
+  let hintRequestId = 0;
+
+  function renderCups() {
+    cupsEl.innerHTML = '';
+    top.forEach((colorId, index) => {
+      const c = COLORS[colorId];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'cup';
+      if (selected === index) button.classList.add('selected');
+      if (hintedPair && hintedPair.includes(index)) button.classList.add('hinted');
+      button.disabled = gameOver;
+      button.setAttribute('aria-label', `第 ${index + 1} 位，${c.name}色水杯`);
+      button.innerHTML = `
+        <div class="cup-shape" style="--cup-color:${c.hex}"></div>
+        <span class="cup-pos">位置 ${index + 1}</span>
+        <span class="cup-name">${c.name}</span>
+      `;
+      button.addEventListener('click', () => onCupClick(index));
+      cupsEl.appendChild(button);
+    });
+  }
+
+  function renderStats() {
+    hitCountEl.textContent = `${currentHits} / 6`;
+    moveCountEl.textContent = String(moveCount);
+    candidateCountEl.textContent = String(candidates.length);
+    selectionTextEl.textContent = selected === null
+      ? '未选择'
+      : `已选位置 ${selected + 1} · ${COLORS[top[selected]].name}`;
+  }
+
+  function setMessage(text, kind = '') {
+    messageEl.className = `message${kind ? ' ' + kind : ''}`;
+    messageEl.textContent = text;
+  }
+
+  function addHistory(turn, swapText, hits, count) {
+    const row = document.createElement('div');
+    row.className = 'history-row';
+    row.innerHTML = `
+      <span class="muted">${turn}</span>
+      <span>${swapText}</span>
+      <strong>命中 ${hits}</strong>
+      <span class="candidate-cell muted">候选 ${count}</span>
+    `;
+    historyEl.prepend(row);
+  }
+
+  function filterCandidates() {
+    candidates = candidates.filter(p => matches(top, p) === currentHits);
+  }
+
+  function invalidateHint() {
+    hintedPair = null;
+    stateVersion++;
+    hintRequestId++;
+    hintBtn.disabled = gameOver;
+    solverStateEl.textContent = '精确搜索器已就绪';
+  }
+
+  function onCupClick(index) {
+    if (gameOver) return;
+    hintedPair = null;
+    if (selected === null) {
+      selected = index;
+      renderCups();
+      renderStats();
+      return;
+    }
+    if (selected === index) {
+      selected = null;
+      renderCups();
+      renderStats();
+      return;
+    }
+
+    const a = selected;
+    const b = index;
+    const nameA = COLORS[top[a]].name;
+    const nameB = COLORS[top[b]].name;
+    [top[a], top[b]] = [top[b], top[a]];
+    selected = null;
+    moveCount++;
+    currentHits = matches(top, hidden);
+    filterCandidates();
+    invalidateHint();
+
+    addHistory(`第 ${moveCount} 步`, `交换 ${a + 1}↔${b + 1}（${nameA}↔${nameB}）`, currentHits, candidates.length);
+
+    if (currentHits === 6) {
+      gameOver = true;
+      hintedPair = null;
+      hintBtn.disabled = true;
+      setMessage(`🎉 全部命中！你用了 ${moveCount} 次交换。`, 'success');
+    } else {
+      setMessage(`当前命中 ${currentHits} 个位置；根据全部反馈，还剩 ${candidates.length} 个可能排列。`);
+    }
+    renderCups();
+    renderStats();
+  }
+
+  function newGame() {
+    top = shuffleCopy([0,1,2,3,4,5]);
+    hidden = shuffleCopy([0,1,2,3,4,5]);
+    selected = null;
+    hintedPair = null;
+    moveCount = 0;
+    gameOver = false;
+    currentHits = matches(top, hidden);
+    candidates = allPerms.filter(p => matches(top, p) === currentHits);
+    stateVersion++;
+    hintRequestId++;
+    hintBtn.disabled = currentHits === 6;
+    solverStateEl.textContent = '精确搜索器已就绪';
+    historyEl.innerHTML = '';
+    addHistory('开局', '初始排列', currentHits, candidates.length);
+
+    if (currentHits === 6) {
+      gameOver = true;
+      setMessage('极小概率事件：随机开局直接 6 个全中。点“新游戏”再来一局。', 'success');
+    } else {
+      setMessage(`随机开局完成：当前命中 ${currentHits} 个位置。请选择两个杯子交换。`);
+    }
+    renderCups();
+    renderStats();
+  }
+
+  clearBtn.addEventListener('click', () => {
+    selected = null;
+    hintedPair = null;
+    renderCups();
+    renderStats();
+  });
+  newGameBtn.addEventListener('click', newGame);
+
+  function solverWorkerMain() {
+    'use strict';
+
+    function generatePermutations() {
+      const out = [];
+      const used = Array(6).fill(false);
+      const cur = [];
+      function dfs() {
+        if (cur.length === 6) {
+          out.push(cur.slice());
+          return;
+        }
+        for (let v = 0; v < 6; v++) {
+          if (!used[v]) {
+            used[v] = true;
+            cur.push(v);
+            dfs();
+            cur.pop();
+            used[v] = false;
+          }
+        }
+      }
+      dfs();
+      return out;
+    }
+
+    const N = 6;
+    const ps = generatePermutations();
+    const idMap = new Map(ps.map((p, i) => [p.join(''), i]));
+    const actions = [];
+    for (let a = 0; a < N; a++) {
+      for (let b = a + 1; b < N; b++) actions.push([a,b]);
+    }
+
+    function fixed(p) {
+      let z = 0;
+      for (let i = 0; i < N; i++) if (p[i] === i) z++;
+      return z;
+    }
+
+    function cycles(p) {
+      const seen = Array(N).fill(false);
+      let c = 0;
+      for (let i = 0; i < N; i++) {
+        if (!seen[i]) {
+          c++;
+          let j = i;
+          while (!seen[j]) {
+            seen[j] = true;
+            j = p[j];
+          }
+        }
+      }
+      return c;
+    }
+
+    const fx = new Uint8Array(720);
+    const dist = new Uint8Array(720);
+    for (let i = 0; i < 720; i++) {
+      fx[i] = fixed(ps[i]);
+      dist[i] = N - cycles(ps[i]);
+    }
+
+    const next = Array.from({length: 15}, () => new Uint16Array(720));
+    const obs = Array.from({length: 15}, () => new Uint8Array(720));
+    for (let ai = 0; ai < 15; ai++) {
+      const [a,b] = actions[ai];
+      for (let pid = 0; pid < 720; pid++) {
+        const q = ps[pid];
+        const y = q.map(v => v === a ? b : (v === b ? a : v));
+        const yid = idMap.get(y.join(''));
+        next[ai][pid] = yid;
+        obs[ai][pid] = fx[yid];
+      }
+    }
+
+    const init = Array.from({length: 7}, () => []);
+    for (let i = 0; i < 720; i++) init[fx[i]].push(i);
+    const initialDepth = {0:11, 1:11, 2:10, 3:10, 4:7, 6:0};
+
+    const memo = new Map();
+    const witness = new Map();
+    const pow5 = [1];
+    for (let i = 1; i <= 20; i++) pow5[i] = pow5[i-1] * 5;
+
+    function stateKey(s, d) {
+      return d + '|' + s.join(',');
+    }
+
+    function sameArray(a,b) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+      return true;
+    }
+
+    function can(s, d) {
+      if (s.length <= 1) return s.length === 0 || dist[s[0]] <= d;
+      if (d <= 0) return false;
+
+      let md = 0;
+      for (let i = 0; i < s.length; i++) if (dist[s[i]] > md) md = dist[s[i]];
+      if (md > d || s.length > pow5[d]) return false;
+
+      const key = stateKey(s, d);
+      if (memo.has(key)) return memo.get(key);
+
+      const choices = [];
+      for (let ai = 0; ai < 15; ai++) {
+        const buckets = Array.from({length: 7}, () => []);
+        let bad = false;
+        for (let k = 0; k < s.length; k++) {
+          const y = next[ai][s[k]];
+          if (dist[y] > d - 1) {
+            bad = true;
+            break;
+          }
+          buckets[obs[ai][s[k]]].push(y);
+        }
+        if (bad) continue;
+
+        let mx = 0;
+        let ss = 0;
+        for (const bucket of buckets) {
+          if (bucket.length) {
+            bucket.sort((x,y) => x-y);
+            if (bucket.length > pow5[d-1]) {
+              bad = true;
+              break;
+            }
+            if (bucket.length > mx) mx = bucket.length;
+            ss += bucket.length * bucket.length;
+          }
+        }
+        if (!bad) choices.push({ai, mx, ss, buckets});
+      }
+
+      choices.sort((x,y) => x.mx - y.mx || x.ss - y.ss || x.ai - y.ai);
+
+      for (const choice of choices) {
+        const order = [];
+        for (let r = 0; r <= 6; r++) {
+          if (choice.buckets[r].length) order.push(r);
+        }
+        order.sort((r1,r2) => choice.buckets[r2].length - choice.buckets[r1].length);
+        let ok = true;
+        for (const r of order) {
+          if (!can(choice.buckets[r], d - 1)) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          memo.set(key, true);
+          witness.set(key, choice.ai);
+          return true;
+        }
+      }
+
+      memo.set(key, false);
+      return false;
+    }
+
+    function reducingAction(pid) {
+      if (dist[pid] === 0) return -1;
+      for (let ai = 0; ai < 15; ai++) {
+        if (dist[next[ai][pid]] === dist[pid] - 1) return ai;
+      }
+      return -1;
+    }
+
+    function normalize(top, candidates) {
+      const inv = Array(6);
+      for (let i = 0; i < 6; i++) inv[top[i]] = i;
+      const ids = candidates.map(p => {
+        const q = p.map(color => inv[color]);
+        return idMap.get(q.join(''));
+      });
+      ids.sort((a,b) => a-b);
+      return ids;
+    }
+
+    function actionSplit(s, ai) {
+      const counts = Array(7).fill(0);
+      for (const x of s) counts[obs[ai][x]]++;
+      return counts;
+    }
+
+    self.onmessage = (event) => {
+      const msg = event.data;
+      if (!msg || msg.type !== 'hint') return;
+      const { requestId, top, candidates } = msg;
+      try {
+        const s = normalize(top, candidates);
+        if (!s.length) throw new Error('候选集合为空，状态记录不一致。');
+
+        if (s.length === 1) {
+          const ai = reducingAction(s[0]);
+          const remaining = dist[s[0]];
+          self.postMessage({
+            type: 'hint-result', requestId, action: ai >= 0 ? actions[ai] : null,
+            depth: remaining,
+            exact: true,
+            unique: true,
+            split: ai >= 0 ? actionSplit(s, ai) : Array(7).fill(0)
+          });
+          return;
+        }
+
+        const r = fx[s[0]];
+        if (s.every(x => fx[x] === r) && initialDepth[r] !== undefined && sameArray(s, init[r])) {
+          const ai = 0;
+          self.postMessage({
+            type: 'hint-result', requestId, action: actions[ai], depth: initialDepth[r],
+            exact: true, unique: false, split: actionSplit(s, ai), symmetricInitial: true
+          });
+          return;
+        }
+
+        let maxDist = 0;
+        for (const x of s) if (dist[x] > maxDist) maxDist = dist[x];
+        let infoLb = 0;
+        while (pow5[infoLb] < s.length) infoLb++;
+        let startDepth = Math.max(maxDist, infoLb, 1);
+        let foundDepth = -1;
+        let foundAction = -1;
+
+        for (let d = startDepth; d <= 16; d++) {
+          if (can(s, d)) {
+            foundDepth = d;
+            const key = stateKey(s, d);
+            foundAction = witness.get(key);
+            if (foundAction === undefined) {
+              for (let ai = 0; ai < 15; ai++) {
+                const buckets = Array.from({length: 7}, () => []);
+                for (const x of s) buckets[obs[ai][x]].push(next[ai][x]);
+                for (const b of buckets) b.sort((x,y) => x-y);
+                let ok = true;
+                for (const b of buckets) {
+                  if (b.length && !can(b, d-1)) { ok = false; break; }
+                }
+                if (ok) { foundAction = ai; break; }
+              }
+            }
+            break;
+          }
+        }
+
+        if (foundAction < 0) throw new Error('在搜索上限内没有找到可证明最优的换位。');
+
+        self.postMessage({
+          type: 'hint-result', requestId, action: actions[foundAction], depth: foundDepth,
+          exact: true, unique: false, split: actionSplit(s, foundAction)
+        });
+      } catch (err) {
+        self.postMessage({type: 'hint-error', requestId, message: err && err.message ? err.message : String(err)});
+      }
+    };
+  }
+
+  const workerBlob = new Blob([`(${solverWorkerMain.toString()})()`], {type: 'text/javascript'});
+  const solverWorker = new Worker(URL.createObjectURL(workerBlob));
+
+  solverWorker.addEventListener('message', (event) => {
+    const msg = event.data;
+    if (!msg || msg.requestId !== hintRequestId) return;
+    hintBtn.disabled = gameOver;
+    solverStateEl.textContent = '精确搜索完成';
+
+    if (msg.type === 'hint-error') {
+      hintedPair = null;
+      setMessage(`Hint 计算失败：${msg.message}`);
+      renderCups();
+      return;
+    }
+
+    if (msg.type === 'hint-result') {
+      if (!msg.action) {
+        hintedPair = null;
+        setMessage('当前已经是完成状态。', 'success');
+        renderCups();
+        return;
+      }
+      const [a,b] = msg.action;
+      hintedPair = [a,b];
+      const splitText = msg.split
+        .map((n,r) => n ? `${r}命中→${n}` : '')
+        .filter(Boolean)
+        .join('，');
+      const uniqueText = msg.unique ? '候选已唯一；这是最短排序中的一步。' : `按最优策略，从当前状态最坏还需 ${msg.depth} 次交换。`;
+      setMessage(`Hint：交换位置 ${a + 1} 与 ${b + 1}（${COLORS[top[a]].name} ↔ ${COLORS[top[b]].name}）。${uniqueText} 该步可能分支：${splitText}。`, 'hint');
+      renderCups();
+    }
+  });
+
+  hintBtn.addEventListener('click', () => {
+    if (gameOver) return;
+    selected = null;
+    hintedPair = null;
+    renderCups();
+    renderStats();
+
+    hintRequestId++;
+    const req = hintRequestId;
+    hintBtn.disabled = true;
+    solverStateEl.textContent = '正在做精确 minimax 搜索…';
+    setMessage('Hint 正在根据当前候选集合计算最优下一步。界面不会读取隐藏排列。', 'hint');
+
+    solverWorker.postMessage({
+      type: 'hint',
+      requestId: req,
+      top: top.slice(),
+      candidates: candidates.map(p => p.slice())
+    });
+  });
+
+  newGame();
+})();
+</script>
+</body>
+</html>
