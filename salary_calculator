@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>北京工资计算器</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #f8fafc;
+      --text: #182033;
+      --muted: #6b7280;
+      --border: #e4e7ec;
+      --accent: #315efb;
+      --accent-soft: #eef2ff;
+      --danger: #c83e4d;
+      --success: #17845b;
+      --shadow: 0 12px 35px rgba(15, 23, 42, .07);
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1218;
+        --panel: #171b23;
+        --panel-2: #1d222c;
+        --text: #eef2f7;
+        --muted: #9ba4b4;
+        --border: #2b3240;
+        --accent: #7292ff;
+        --accent-soft: #232d52;
+        --danger: #ff7b87;
+        --success: #63d5a6;
+        --shadow: none;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+        Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input, select { font: inherit; }
+
+    .page {
+      width: min(1480px, calc(100% - 32px));
+      margin: 30px auto 56px;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: clamp(28px, 3vw, 42px);
+      line-height: 1.15;
+      letter-spacing: -.03em;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(310px, .85fr) minmax(0, 1.55fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .form-card {
+      padding: 20px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-title small {
+      color: var(--muted);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 650;
+      margin-bottom: 7px;
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .input-wrap { position: relative; }
+
+    input, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 11px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    input.with-unit { padding-right: 44px; }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .unit {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    button {
+      min-height: 44px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: transform .08s ease, opacity .15s ease, background .15s ease;
+    }
+
+    button:active { transform: translateY(1px); }
+
+    .primary {
+      flex: 1;
+      border-color: transparent;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .ghost {
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .danger {
+      background: transparent;
+      color: var(--danger);
+      border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+    }
+
+    .message {
+      min-height: 22px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .message.ok { color: var(--success); }
+    .message.error { color: var(--danger); }
+
+    details {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .details-body {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .right-column {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .metric .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .metric .value {
+      font-size: clamp(20px, 2.2vw, 30px);
+      font-weight: 800;
+      letter-spacing: -.03em;
+      overflow-wrap: anywhere;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mini-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .mini {
+      padding: 14px 16px;
+    }
+
+    .mini .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mini .value {
+      margin-top: 5px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .table-card {
+      overflow: hidden;
+    }
+
+    .table-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .table-header h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 850px;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th {
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+    tr:last-child td { border-bottom: 0; }
+
+    td.net {
+      font-weight: 800;
+    }
+
+    td.minus {
+      color: var(--muted);
+    }
+
+    .comparison {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    .comparison-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .comparison-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .comparison-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .empty {
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      padding: 22px;
+      border-radius: 14px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .saved-table {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .saved-table table { min-width: 1050px; }
+
+    .hidden { display: none !important; }
+
+    .note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .form-card { position: static; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 20px, 1480px);
+        margin-top: 18px;
+      }
+      .header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .mini-metrics { grid-template-columns: 1fr; }
+      .actions { flex-direction: column; }
+      .metric { padding: 14px; }
+      .metric .value { font-size: 22px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="header">
+      <div>
+        <h1>北京工资计算器</h1>
+        <p>月薪、免税月额外收入、年终奖、五险一金与多 Offer 对比。</p>
+      </div>
+      <div class="badge">2026 自然年度</div>
+    </header>
+
+    <div class="layout">
+      <section class="card form-card">
+        <div class="section-title">
+          <h2>收入参数</h2>
+          <small>北京</small>
+        </div>
+
+        <div class="form-grid">
+          <div class="field full">
+            <label for="jobName">方案名称 / 公司</label>
+            <input id="jobName" type="text" maxlength="50" placeholder="例如：Offer A / 某公司" />
+          </div>
+
+          <div class="field">
+            <label for="salary">月薪</label>
+            <div class="input-wrap">
+              <input id="salary" class="with-unit" type="number" inputmode="decimal" min="0" step="100" placeholder="24000" />
+              <span class="unit">元</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="monthlyBonus">月额外收入</label>
+            <div class="input-wrap">
+              <input id="monthlyBonus" class="with-unit" type="number" inputmode="decimal" min="0" step="100" placeholder="0" />
+              <span class="unit">元</span>
+            </div>
+            <div class="hint">每月固定发放，本计算器按不计税处理。</div>
+          </div>
+
+          <div class="field full">
+            <label for="annualBonus">年终奖</label>
+            <div class="input-wrap">
+              <input id="annualBonus" class="with-unit" type="number" inputmode="decimal" min="0" step="100" placeholder="0" />
+              <span class="unit">元</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="socialBase">社保缴纳基数</label>
+            <div class="input-wrap">
+              <input id="socialBase" class="with-unit" type="number" inputmode="decimal" min="0" step="100" placeholder="随月薪" />
+              <span class="unit">元</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fundBase">公积金缴纳基数</label>
+            <div class="input-wrap">
+              <input id="fundBase" class="with-unit" type="number" inputmode="decimal" min="0" step="100" placeholder="随月薪" />
+              <span class="unit">元</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="fundRate">公积金比例</label>
+            <div class="input-wrap">
+              <input id="fundRate" class="with-unit" type="number" inputmode="decimal" min="5" max="12" step="1" value="12" />
+              <span class="unit">%</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="annualBonusMonth">年终奖发放月份</label>
+            <select id="annualBonusMonth">
+              <option value="1">1 月</option>
+              <option value="2">2 月</option>
+              <option value="3">3 月</option>
+              <option value="4">4 月</option>
+              <option value="5">5 月</option>
+              <option value="6">6 月</option>
+              <option value="7">7 月</option>
+              <option value="8">8 月</option>
+              <option value="9">9 月</option>
+              <option value="10">10 月</option>
+              <option value="11">11 月</option>
+              <option value="12" selected>12 月</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label for="annualBonusMethod">年终奖计税方式</label>
+            <select id="annualBonusMethod">
+              <option value="separate" selected>全年一次性奖金单独计税</option>
+              <option value="merge">并入综合所得</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="message" class="message" aria-live="polite"></div>
+
+        <div class="actions">
+          <button id="saveBtn" class="primary" type="button">保存当前方案</button>
+          <button id="clearBtn" class="ghost" type="button">一键清空</button>
+        </div>
+
+        <details>
+          <summary>计算口径与假设</summary>
+          <div class="details-body">
+            <div>· 工资个税采用累计预扣法，基本减除费用按每月 5000 元。</div>
+            <div>· 月额外收入直接加入现金收入，不参与个税、社保及公积金计算。</div>
+            <div>· 年终奖默认采用全年一次性奖金单独计税，也可改为并入综合所得。</div>
+            <div>· 个人社保按养老 8% + 医疗 2% + 3 元 + 失业 0.5% 估算。</div>
+            <div>· 社保基数：1–6 月按 7162–35811 元；7–12 月按 7270–36348 元。</div>
+            <div>· 公积金基数：1–6 月上限 35811 元；7–12 月上限 36348 元；下限按 2540 元。</div>
+            <div>· 公积金比例限制在 5%–12%。</div>
+            <div>· 未计专项附加扣除、补充医疗、企业年金等个性化项目。</div>
+            <div>· “含公积金平均月收入”把个人与单位双边公积金均计入收入。</div>
+          </div>
+        </details>
+      </section>
+
+      <section class="right-column">
+        <div class="metrics">
+          <article class="card metric">
+            <div class="label">年度总收入</div>
+            <div id="grossAnnual" class="value">¥0</div>
+          </article>
+          <article class="card metric">
+            <div class="label">年度税后到手</div>
+            <div id="netAnnual" class="value">¥0</div>
+          </article>
+          <article class="card metric">
+            <div class="label">平均月到手</div>
+            <div id="avgMonthly" class="value">¥0</div>
+          </article>
+          <article class="card metric">
+            <div class="label">含公积金平均月收入</div>
+            <div id="avgWithFund" class="value">¥0</div>
+          </article>
+        </div>
+
+        <div class="mini-metrics">
+          <article class="card mini">
+            <div class="label">全年个税</div>
+            <div id="annualTax" class="value">¥0</div>
+          </article>
+          <article class="card mini">
+            <div class="label">全年个人社保</div>
+            <div id="annualSocial" class="value">¥0</div>
+          </article>
+          <article class="card mini">
+            <div class="label">全年双边公积金</div>
+            <div id="annualFundDouble" class="value">¥0</div>
+          </article>
+        </div>
+
+        <section class="card table-card">
+          <div class="table-header">
+            <h2>12 个月工资明细</h2>
+            <span class="badge">实时计算</span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>月份</th>
+                  <th>月薪</th>
+                  <th>月额外收入</th>
+                  <th>年终奖</th>
+                  <th>个人社保</th>
+                  <th>个人公积金</th>
+                  <th>个税</th>
+                  <th>税后到手</th>
+                </tr>
+              </thead>
+              <tbody id="monthRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </div>
+
+    <section class="card comparison">
+      <div class="comparison-head">
+        <div>
+          <h2>已保存方案比较</h2>
+          <p>使用浏览器 localStorage 保存，关闭页面后仍会保留。</p>
+        </div>
+        <span id="savedCount" class="badge">0 个方案</span>
+      </div>
+
+      <div id="emptySaved" class="empty">保存几份工作 / Offer 后，会在这里直接横向比较。</div>
+
+      <div id="savedWrap" class="saved-table hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>月薪</th>
+              <th>月额外</th>
+              <th>年终奖</th>
+              <th>年度总收入</th>
+              <th>年度到手</th>
+              <th>平均月到手</th>
+              <th>含公积金月均</th>
+              <th>全年个税</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="savedRows"></tbody>
+        </table>
+      </div>
+
+      <div class="note">计算结果用于收入估算，不替代单位实际工资条或税务申报结果。</div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "beijing_salary_calculator_offers_v1";
+
+      const $ = (id) => document.getElementById(id);
+      const els = {
+        jobName: $("jobName"),
+        salary: $("salary"),
+        monthlyBonus: $("monthlyBonus"),
+        annualBonus: $("annualBonus"),
+        socialBase: $("socialBase"),
+        fundBase: $("fundBase"),
+        fundRate: $("fundRate"),
+        annualBonusMonth: $("annualBonusMonth"),
+        annualBonusMethod: $("annualBonusMethod"),
+        message: $("message"),
+        saveBtn: $("saveBtn"),
+        clearBtn: $("clearBtn"),
+
+        grossAnnual: $("grossAnnual"),
+        netAnnual: $("netAnnual"),
+        avgMonthly: $("avgMonthly"),
+        avgWithFund: $("avgWithFund"),
+        annualTax: $("annualTax"),
+        annualSocial: $("annualSocial"),
+        annualFundDouble: $("annualFundDouble"),
+        monthRows: $("monthRows"),
+
+        savedCount: $("savedCount"),
+        emptySaved: $("emptySaved"),
+        savedWrap: $("savedWrap"),
+        savedRows: $("savedRows")
+      };
+
+      let savedOffers = loadOffers();
+      let socialTouched = false;
+      let fundTouched = false;
+      let previousSalary = "";
+
+      function numberOf(el) {
+        const v = Number(el.value);
+        return Number.isFinite(v) && v >= 0 ? v : 0;
+      }
+
+      function clamp(v, min, max) {
+        return Math.min(Math.max(v, min), max);
+      }
+
+      function round2(v) {
+        return Math.round((v + Number.EPSILON) * 100) / 100;
+      }
+
+      function money(v, decimals = 0) {
+        return new Intl.NumberFormat("zh-CN", {
+          style: "currency",
+          currency: "CNY",
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals
+        }).format(Number.isFinite(v) ? v : 0);
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, (c) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "'": "&#39;",
+          '"': "&quot;"
+        })[c]);
+      }
+
+      function socialLimits(month) {
+        return month <= 6
+          ? { min: 7162, max: 35811 }
+          : { min: 7270, max: 36348 };
+      }
+
+      function fundLimits(month) {
+        return month <= 6
+          ? { min: 2540, max: 35811 }
+          : { min: 2540, max: 36348 };
+      }
+
+      function comprehensiveTax(taxable) {
+        const x = Math.max(0, taxable);
+
+        if (x <= 36000) return x * 0.03;
+        if (x <= 144000) return x * 0.10 - 2520;
+        if (x <= 300000) return x * 0.20 - 16920;
+        if (x <= 420000) return x * 0.25 - 31920;
+        if (x <= 660000) return x * 0.30 - 52920;
+        if (x <= 960000) return x * 0.35 - 85920;
+        return x * 0.45 - 181920;
+      }
+
+      function separateAnnualBonusTax(bonus) {
+        if (bonus <= 0) return 0;
+
+        const monthlyEquivalent = bonus / 12;
+        let rate = 0.03;
+        let quickDeduction = 0;
+
+        if (monthlyEquivalent <= 3000) {
+          rate = 0.03;
+          quickDeduction = 0;
+        } else if (monthlyEquivalent <= 12000) {
+          rate = 0.10;
+          quickDeduction = 210;
+        } else if (monthlyEquivalent <= 25000) {
+          rate = 0.20;
+          quickDeduction = 1410;
+        } else if (monthlyEquivalent <= 35000) {
+          rate = 0.25;
+          quickDeduction = 2660;
+        } else if (monthlyEquivalent <= 55000) {
+          rate = 0.30;
+          quickDeduction = 4410;
+        } else if (monthlyEquivalent <= 80000) {
+          rate = 0.35;
+          quickDeduction = 7160;
+        } else {
+          rate = 0.45;
+          quickDeduction = 15160;
+        }
+
+        return Math.max(0, bonus * rate - quickDeduction);
+      }
+
+      function calculate() {
+        const salary = numberOf(els.salary);
+        const monthlyBonus = numberOf(els.monthlyBonus);
+        const annualBonus = numberOf(els.annualBonus);
+        const rawSocialBase = numberOf(els.socialBase);
+        const rawFundBase = numberOf(els.fundBase);
+        const fundRate = clamp(numberOf(els.fundRate) || 12, 5, 12) / 100;
+        const annualBonusMonth = clamp(
+          parseInt(els.annualBonusMonth.value, 10) || 12,
+          1,
+          12
+        );
+        const annualBonusMethod = els.annualBonusMethod.value;
+
+        const rows = [];
+
+        let cumulativeTaxableIncome = 0;
+        let cumulativeDeductions = 0;
+        let cumulativeSalaryTaxPaid = 0;
+
+        let annualNet = 0;
+        let annualSocial = 0;
+        let annualFundPersonal = 0;
+        let annualTax = 0;
+
+        for (let month = 1; month <= 12; month++) {
+          const sLimit = socialLimits(month);
+          const fLimit = fundLimits(month);
+
+          const socialBase = salary > 0
+            ? clamp(rawSocialBase || salary, sLimit.min, sLimit.max)
+            : 0;
+
+          const fundBase = salary > 0
+            ? clamp(rawFundBase || salary, fLimit.min, fLimit.max)
+            : 0;
+
+          const personalSocial = round2(
+            socialBase * 0.105 + (socialBase > 0 ? 3 : 0)
+          );
+
+          const personalFund = fundBase > 0
+            ? Math.round(fundBase * fundRate)
+            : 0;
+
+          const thisMonthAnnualBonus =
+            month === annualBonusMonth ? annualBonus : 0;
+
+          const taxableIncomeThisMonth =
+            salary +
+            (annualBonusMethod === "merge" ? thisMonthAnnualBonus : 0);
+
+          cumulativeTaxableIncome += taxableIncomeThisMonth;
+          cumulativeDeductions += 5000 + personalSocial + personalFund;
+
+          const cumulativeSalaryTaxDue = Math.max(
+            0,
+            comprehensiveTax(
+              cumulativeTaxableIncome - cumulativeDeductions
+            )
+          );
+
+          const salaryTax = round2(
+            Math.max(
+              0,
+              cumulativeSalaryTaxDue - cumulativeSalaryTaxPaid
+            )
+          );
+
+          cumulativeSalaryTaxPaid = round2(
+            cumulativeSalaryTaxPaid + salaryTax
+          );
+
+          const annualBonusTax =
+            annualBonusMethod === "separate" && thisMonthAnnualBonus > 0
+              ? round2(separateAnnualBonusTax(thisMonthAnnualBonus))
+              : 0;
+
+          const monthTax = round2(salaryTax + annualBonusTax);
+
+          const takeHome = round2(
+            salary +
+            monthlyBonus +
+            thisMonthAnnualBonus -
+            personalSocial -
+            personalFund -
+            monthTax
+          );
+
+          annualNet += takeHome;
+          annualSocial += personalSocial;
+          annualFundPersonal += personalFund;
+          annualTax += monthTax;
+
+          rows.push({
+            month,
+            salary,
+            monthlyBonus,
+            annualBonus: thisMonthAnnualBonus,
+            social: personalSocial,
+            fund: personalFund,
+            tax: monthTax,
+            takeHome
+          });
+        }
+
+        annualNet = round2(annualNet);
+        annualSocial = round2(annualSocial);
+        annualFundPersonal = round2(annualFundPersonal);
+        annualTax = round2(annualTax);
+
+        const grossAnnual =
+          salary * 12 +
+          monthlyBonus * 12 +
+          annualBonus;
+
+        const annualFundDouble = round2(annualFundPersonal * 2);
+        const avgMonthly = annualNet / 12;
+        const avgWithFund =
+          (annualNet + annualFundDouble) / 12;
+
+        return {
+          salary,
+          monthlyBonus,
+          annualBonus,
+          annualBonusMethod,
+          annualBonusMonth,
+          fundRate: fundRate * 100,
+          grossAnnual,
+          annualNet,
+          avgMonthly,
+          annualSocial,
+          annualFundPersonal,
+          annualFundDouble,
+          avgWithFund,
+          annualTax,
+          rows
+        };
+      }
+
+      function render() {
+        const r = calculate();
+
+        els.grossAnnual.textContent = money(r.grossAnnual);
+        els.netAnnual.textContent = money(r.annualNet);
+        els.avgMonthly.textContent = money(r.avgMonthly);
+        els.avgWithFund.textContent = money(r.avgWithFund);
+        els.annualTax.textContent = money(r.annualTax);
+        els.annualSocial.textContent = money(r.annualSocial);
+        els.annualFundDouble.textContent = money(r.annualFundDouble);
+
+        els.monthRows.innerHTML = r.rows.map((row) => `
+          <tr>
+            <td><strong>${row.month} 月</strong></td>
+            <td>${money(row.salary)}</td>
+            <td>${row.monthlyBonus ? money(row.monthlyBonus) : "—"}</td>
+            <td>${row.annualBonus ? money(row.annualBonus) : "—"}</td>
+            <td class="minus">-${money(row.social, 2)}</td>
+            <td class="minus">-${money(row.fund)}</td>
+            <td class="minus">-${money(row.tax, 2)}</td>
+            <td class="net">${money(row.takeHome, 2)}</td>
+          </tr>
+        `).join("");
+
+        validate();
+      }
+
+      function validate() {
+        const salary = numberOf(els.salary);
+        const rawRate = Number(els.fundRate.value);
+
+        els.message.className = "message";
+
+        if (els.salary.value && salary <= 0) {
+          els.message.textContent = "月薪需要大于 0。";
+          els.message.classList.add("error");
+          return;
+        }
+
+        if (
+          els.fundRate.value &&
+          Number.isFinite(rawRate) &&
+          (rawRate < 5 || rawRate > 12)
+        ) {
+          els.message.textContent =
+            "公积金比例应在 5%–12% 之间；当前计算会自动按边界值处理。";
+          els.message.classList.add("error");
+          return;
+        }
+
+        if (salary > 0) {
+          els.message.textContent =
+            "已实时计算：月额外收入不计税，年终奖按所选方式计税。";
+          return;
+        }
+
+        els.message.textContent =
+          "填写月薪后，社保基数和公积金基数会自动跟随月薪。";
+      }
+
+      function loadOffers() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function persistOffers() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedOffers));
+        } catch {
+          els.message.textContent =
+            "浏览器阻止了本地保存，但当前页面仍可继续使用。";
+          els.message.className = "message error";
+        }
+      }
+
+      function renderSaved() {
+        els.savedCount.textContent = `${savedOffers.length} 个方案`;
+        els.emptySaved.classList.toggle("hidden", savedOffers.length > 0);
+        els.savedWrap.classList.toggle("hidden", savedOffers.length === 0);
+
+        els.savedRows.innerHTML = savedOffers.map((offer, index) => `
+          <tr>
+            <td><strong>${escapeHtml(offer.name)}</strong></td>
+            <td>${money(offer.salary)}</td>
+            <td>${money(offer.monthlyBonus)}</td>
+            <td>${money(offer.annualBonus)}</td>
+            <td>${money(offer.grossAnnual)}</td>
+            <td><strong>${money(offer.annualNet)}</strong></td>
+            <td>${money(offer.avgMonthly)}</td>
+            <td><strong>${money(offer.avgWithFund)}</strong></td>
+            <td>${money(offer.annualTax)}</td>
+            <td>
+              <button class="danger" type="button" data-delete="${index}">
+                删除
+              </button>
+            </td>
+          </tr>
+        `).join("");
+
+        els.savedRows
+          .querySelectorAll("[data-delete]")
+          .forEach((button) => {
+            button.addEventListener("click", () => {
+              const index = Number(button.dataset.delete);
+              savedOffers.splice(index, 1);
+              persistOffers();
+              renderSaved();
+            });
+          });
+      }
+
+      function saveCurrentOffer() {
+        const r = calculate();
+
+        if (r.salary <= 0) {
+          els.message.textContent = "请先填写月薪，再保存方案。";
+          els.message.className = "message error";
+          els.salary.focus();
+          return;
+        }
+
+        const name =
+          els.jobName.value.trim() ||
+          `方案 ${savedOffers.length + 1}`;
+
+        savedOffers.push({
+          id: Date.now(),
+          name,
+          salary: r.salary,
+          monthlyBonus: r.monthlyBonus,
+          annualBonus: r.annualBonus,
+          grossAnnual: r.grossAnnual,
+          annualNet: r.annualNet,
+          avgMonthly: r.avgMonthly,
+          avgWithFund: r.avgWithFund,
+          annualTax: r.annualTax
+        });
+
+        persistOffers();
+        renderSaved();
+
+        els.message.textContent =
+          `“${name}”已保存到浏览器本地。`;
+        els.message.className = "message ok";
+      }
+
+      function clearInputs() {
+        els.jobName.value = "";
+        els.salary.value = "";
+        els.monthlyBonus.value = "";
+        els.annualBonus.value = "";
+        els.socialBase.value = "";
+        els.fundBase.value = "";
+        els.fundRate.value = "12";
+        els.annualBonusMonth.value = "12";
+        els.annualBonusMethod.value = "separate";
+
+        socialTouched = false;
+        fundTouched = false;
+        previousSalary = "";
+
+        render();
+        els.salary.focus();
+      }
+
+      els.salary.addEventListener("input", () => {
+        const currentSalary = els.salary.value;
+
+        if (
+          !socialTouched ||
+          !els.socialBase.value ||
+          els.socialBase.value === previousSalary
+        ) {
+          els.socialBase.value = currentSalary;
+        }
+
+        if (
+          !fundTouched ||
+          !els.fundBase.value ||
+          els.fundBase.value === previousSalary
+        ) {
+          els.fundBase.value = currentSalary;
+        }
+
+        if (!els.fundRate.value) {
+          els.fundRate.value = "12";
+        }
+
+        previousSalary = currentSalary;
+        render();
+      });
+
+      els.socialBase.addEventListener("input", () => {
+        socialTouched = true;
+        render();
+      });
+
+      els.fundBase.addEventListener("input", () => {
+        fundTouched = true;
+        render();
+      });
+
+      [
+        els.monthlyBonus,
+        els.annualBonus,
+        els.fundRate,
+        els.annualBonusMonth,
+        els.annualBonusMethod
+      ].forEach((el) => {
+        el.addEventListener("input", render);
+        el.addEventListener("change", render);
+      });
+
+      els.saveBtn.addEventListener("click", saveCurrentOffer);
+      els.clearBtn.addEventListener("click", clearInputs);
+
+      render();
+      renderSaved();
+    })();
+  </script>
+</body>
+</html>
